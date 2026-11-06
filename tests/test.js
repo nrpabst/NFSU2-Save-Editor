@@ -52,4 +52,22 @@ t("career import copies progress and keeps cars, cash and name", () => {
   assert.strictEqual(N.readCareer(b, N.activeIndex(b)).code, "240SX");
   for (let i = 28; i < 1196; i++) assert.strictEqual(b[i], full[i], `car table byte ${i}`);
 });
+t("dyno tuning: 5 setups of 41 sliders, read and written in game steps", () => {
+  const base = N.careerBase(0);
+  // The 100% save's first car has its Street X nitrous tuned one notch each way
+  assert.deepStrictEqual([0, 1, 2, 3, 4].map(s => N.setupTuned(full, base, s)), [false, false, false, true, false]);
+  assert.strictEqual(N.getTune(full, base, 3, 16), -1);
+  assert.strictEqual(N.getTune(full, base, 3, 17), 1);
+  const b = early.slice(), cb = N.careerBase(1);
+  N.setTune(b, cb, 2, 20, -6); assert.strictEqual(b[cb + 856 + 2 * 41 + 20], 40);
+  N.setTune(b, cb, 2, 9, 99); assert.strictEqual(b[cb + 856 + 2 * 41 + 9], 200);
+  N.applyTunePreset(b, cb, 1, "drag"); assert(N.setupTuned(b, cb, 1));
+  for (let k = 0; k < 41; k++) assert(b[cb + 856 + 41 + k] % 10 === 0 && b[cb + 856 + 41 + k] <= 200);
+  N.copySetup(b, cb, 1, 4); assert.deepStrictEqual(b.slice(cb + 856 + 41, cb + 856 + 82), b.slice(cb + 856 + 164, cb + 856 + 205));
+  N.resetSetup(b, cb, 1); assert(!N.setupTuned(b, cb, 1));
+  // nothing outside the tuning block moved
+  const o = early.slice(); for (let i = 0; i < b.length; i++) if (i < cb + 856 || i >= cb + 1061) assert.strictEqual(b[i], o[i]);
+  const all = N.TUNE_GROUPS.flatMap(g => g[1].map(it => it[0])).sort((x, y) => x - y);
+  assert.deepStrictEqual(all, Array.from({ length: 41 }, (_, i) => i));
+});
 console.log(`\n${n} tests passed`);

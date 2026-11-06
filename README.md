@@ -22,6 +22,7 @@ Your save is never uploaded, even online. The editor runs on your computer and t
 - Unlock 100% career progress, keeping your own cars
 - Add, swap or remove garage cars, including 12 fully modded builds
 - Max out performance in one click
+- Dyno tuning for every race type (suspension, gears, nitrous, ECU and more), with drift, drag, grip and top speed presets
 - Body kits, widebodies, hoods, lights and more
 - Quick Race garage editing
 - Writes valid checksums, so nfsu2.xyz doesn't flag the save as edited

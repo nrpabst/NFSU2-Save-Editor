@@ -55,6 +55,17 @@ details summary{cursor:pointer;color:var(--mute)}
 .pkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
 .pk{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
 .pk span{color:var(--mute);font-size:13px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px 14px}
+.tune{display:grid;grid-template-columns:1fr auto;gap:0 8px;align-items:center;font-size:13px}
+.tune input[type=range]{grid-column:1/3;width:100%;accent-color:var(--acc)}
+.tune .v{font-variant-numeric:tabular-nums;color:var(--mute)}
+.tune .v.on{color:var(--acc);font-weight:600}
+.tune .ends{grid-column:1/3;display:flex;justify-content:space-between;font-size:11px;color:var(--mute);margin-top:-2px}
+.curve{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;align-items:end;text-align:center;font-size:11px;color:var(--mute)}
+.curve input[type=range]{writing-mode:vertical-lr;direction:rtl;width:22px;height:110px;margin:0 auto;accent-color:var(--acc)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.tabs .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-left:6px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -445,6 +456,47 @@ const NFS = (() => {
     w32(b, OFF.firstMyCarsId, u32(b, OFF.activeCareerId));
   }
 
+  // ---------- dyno tuning ----------
+  // Every car keeps 5 dyno setups of 41 bytes at +856, one per race type, in the
+  // game's order (SPEED2.EXE 0x549760): Circuit (also Sprint), Drag, Drift, Street X,
+  // URL. Each byte is 0..200, 100 = centre; the game reads (b - 100) / 100 and its
+  // sliders move in steps of 10 (-10..+10 on screen). Bytes 0..22 are one slider each
+  // in the game's tuning-type order (label switch 0x50FE90, getter 0x59AEE0); the ECU
+  // and turbo torque curves are 9 columns each (1000 rpm apart) at 23..31 and 32..40.
+  const TUNE_OFF = 856, SETUP_SIZE = 41;
+  const SETUPS = ["Circuit and Sprint", "Drag", "Drift", "Street X", "URL"];
+  // [byte, name, left label, right label]
+  const TUNE_GROUPS = [
+    ["Suspension", [[0, "Front Springs", "Soft", "Hard"], [4, "Rear Springs", "Soft", "Hard"], [1, "Front Shocks", "Soft", "Hard"],
+      [5, "Rear Shocks", "Soft", "Hard"], [2, "Front Sway Bar", "Soft", "Hard"], [6, "Rear Sway Bar", "Soft", "Hard"],
+      [3, "Front Lowering", "Low", "High"], [7, "Rear Lowering", "Low", "High"], [8, "Steering Ratio", "Less", "More"]]],
+    ["Drivetrain", [[9, "Final Drive Ratio", "Top Speed", "Acceleration"], [10, "1st Gear"], [11, "2nd Gear"], [12, "3rd Gear"],
+      [13, "4th Gear"], [14, "5th Gear"], [15, "6th Gear"]]],
+    ["Aerodynamics", [[21, "Front Downforce", "Weak", "Strong"], [22, "Rear Downforce", "Weak", "Strong"]]],
+    ["Tires & Brakes", [[19, "Front Tire Grip", "Weak", "Strong"], [20, "Rear Tire Grip", "Weak", "Strong"], [18, "Brake Bias", "Rear", "Front"]]],
+    ["Nitrous", [[17, "Nitrous Torque", "Less", "More"], [16, "Rate of Depletion", "Slower", "Faster"]]],
+    ["ECU", Array.from({ length: 9 }, (_, i) => [23 + i, `${i + 1},000 rpm`])],
+    ["Turbo", Array.from({ length: 9 }, (_, i) => [32 + i, `${i + 1},000 rpm`])],
+  ];
+  // Presets in on-screen steps (-10..+10); sliders not listed go back to the centre.
+  const TUNE_PRESETS = {
+    grip: { name: "Grip (circuit)", setup: 0, steps: { 0: 5, 4: 5, 1: 5, 5: 5, 2: 6, 6: 4, 3: -10, 7: -10, 8: 3, 21: 8, 22: 8, 19: 10, 20: 10, 18: 2 } },
+    drag: { name: "Drag", setup: 1, steps: { 0: 2, 4: -3, 1: 2, 5: -3, 3: -10, 7: -6, 9: 3, 10: 4, 11: 3, 12: 2, 21: -10, 22: -10, 19: 0, 20: 10, 18: 3, 17: 10, 16: 5 } },
+    drift: { name: "Drift", setup: 2, steps: { 0: 6, 4: -4, 1: 5, 5: -3, 2: 8, 6: -6, 3: -6, 7: -6, 8: 10, 9: 6, 10: 5, 11: 5, 12: 4, 19: 10, 20: -6, 18: -5, 21: 5, 22: -5 } },
+    speed: { name: "Top speed (Street X / URL)", setup: 3, steps: { 0: 4, 4: 4, 1: 4, 5: 4, 3: -8, 7: -8, 9: -6, 13: -3, 14: -4, 15: -4, 21: -4, 22: -2, 19: 6, 20: 6, 17: 6 } },
+  };
+  function tuneAt(base, setup, k) { return base + TUNE_OFF + setup * SETUP_SIZE + k; }
+  // On-screen step (-10..+10, rounded) for a byte, and back
+  function getTune(b, base, setup, k) { return Math.round((b[tuneAt(base, setup, k)] - 100) / 10); }
+  function setTune(b, base, setup, k, step) { b[tuneAt(base, setup, k)] = 100 + 10 * Math.max(-10, Math.min(10, Math.round(step))); }
+  function resetSetup(b, base, setup) { b.fill(100, tuneAt(base, setup, 0), tuneAt(base, setup, SETUP_SIZE)); }
+  function applyTunePreset(b, base, setup, id) {
+    const p = TUNE_PRESETS[id]; resetSetup(b, base, setup);
+    for (const k in p.steps) setTune(b, base, setup, +k, p.steps[k]);
+  }
+  function copySetup(b, base, from, to) { b.copyWithin(tuneAt(base, to, 0), tuneAt(base, from, 0), tuneAt(base, from, SETUP_SIZE)); }
+  function setupTuned(b, base, setup) { for (let k = 0; k < SETUP_SIZE; k++) if (b[tuneAt(base, setup, k)] !== 100) return true; return false; }
+
   // Profile checksums, as nfsu2.xyz (and the game) check them: CRC-32 (MSB-first) of [28,36), [36,end), [0,24)
   const CRC_T = new Uint32Array(256);
   for (let n = 0; n < 256; n++) { let e = n << 24; for (let t = 0; t < 8; t++) e = e & 0x80000000 ? (e << 1) ^ 0x04C11DB7 : e << 1; CRC_T[n] = e >>> 0; }
@@ -455,14 +507,15 @@ const NFS = (() => {
 
   return { SAVE_SIZE, OFF, CARS, TAILS, GENERIC, SLOT_LABELS, KITS, PICKERS, PRESETS, applyPicker, currentPick, SEEN, maxPerformance, stockPerformance, perfLevel, applyPreset, genericOptions, importProgress, progressLooksImported, presetMyCar, presetCareer, bh, u32, w32, f32, validate, carCodeOf, carName, partName,
     stockPart, readCareer, readMyCar, setCareerCar, changeCareerModel, removeCareerCar, activeIndex, setActive,
-    copyCareerToMyCars, setMyCar, clearMyCar, profileName, fixChecksums, checksumsOk, careerBase, myCarsBase, carTableFloat };
+    copyCareerToMyCars, setMyCar, clearMyCar, profileName, fixChecksums, checksumsOk, careerBase, myCarsBase, carTableFloat,
+    SETUPS, TUNE_GROUPS, TUNE_PRESETS, getTune, setTune, resetSetup, applyTunePreset, copySetup, setupTuned };
 })();
 
 </script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  let orig = null, buf = null, fname = "profile", selCareer = null, changes = [];
+  let orig = null, buf = null, fname = "profile", selCareer = null, selSetup = 0, changes = [];
   const fmt = n => "$" + n.toLocaleString("en-US");
   const hex = n => "0x" + (n >>> 0).toString(16).toUpperCase().padStart(8, "0");
 
@@ -562,10 +615,12 @@ const NFS = (() => {
       <h3 style="font-size:14px;margin:14px 0 6px">Body parts</h3>
       <div class="pkgrid">${pick}</div>
       <p class="note">✓ means at least one car in the 100% save uses that option, but not every car has every style. If the game shows a missing part or crashes, set that part back to Stock. A widebody replaces the body and doors. The widebody cars in the 100% save all kept stock bumpers and skirts.</p>
+      ${tuningHtml(c)}
       <details><summary>All part slots (advanced)</summary>
         <p class="note">Type a part name (like <code>${c.code || "240SX"}_STYLE21_HOOD</code>) or a hex hash and press Enter, or pick a value used on other cars in the 100% save. A wrong part can crash the game when it loads the car, so change one thing at a time and keep backups.</p>
         <div class="scroll"><table><thead><tr><th>Offset</th><th>Slot</th><th>Part</th><th>Hash</th><th>Set</th></tr></thead><tbody>${rows}</tbody></table></div>
       </details></div>`;
+    wireTuning(c);
     $("edMax").onclick = () => { NFS.maxPerformance(buf, c.base); log(`Slot ${selCareer + 1}: performance maxed`); };
     $("edPerfStock").onclick = () => { if (!confirm("Remove all performance upgrades from this car?")) return; NFS.stockPerformance(buf, c.base); log(`Slot ${selCareer + 1}: performance reset to stock`); };
     $("edModelGo").onclick = () => {
@@ -590,6 +645,61 @@ const NFS = (() => {
       NFS.w32(buf, c.base + off, h);
       log(`Slot ${selCareer + 1}: ${NFS.SLOT_LABELS[off] || "offset " + off} set to ${/^0x/i.test(v) ? hex(h) : v.toUpperCase()}`);
     });
+  }
+
+  // ---------- dyno tuning ----------
+  const stepText = v => v > 0 ? "+" + v : String(v);
+  function tuneSlider(c, [k, name, lo, hi]) {
+    const v = NFS.getTune(buf, c.base, selSetup, k);
+    return `<label class="tune"><span>${name}</span><span class="v${v ? " on" : ""}">${stepText(v)}</span>
+      <input type="range" min="-10" max="10" step="1" value="${v}" data-tune="${k}" aria-label="${name}">
+      ${lo ? `<span class="ends"><span>${lo}</span><span>${hi}</span></span>` : ""}</label>`;
+  }
+  function tuneCurve(c, items) {
+    return `<div class="curve">${items.map(([k, name]) => {
+      const v = NFS.getTune(buf, c.base, selSetup, k);
+      return `<label><span class="v${v ? " on" : ""}" style="display:block">${stepText(v)}</span>
+        <input type="range" min="-10" max="10" step="1" value="${v}" data-tune="${k}" aria-label="${name}"><span style="display:block">${name.replace(",000 rpm", "k")}</span></label>`;
+    }).join("")}</div>`;
+  }
+  function tuningHtml(c) {
+    const tabs = NFS.SETUPS.map((n, i) => `<button data-setup="${i}" class="${i === selSetup ? "on" : ""}">${n}${NFS.setupTuned(buf, c.base, i) ? '<span class="dot" title="tuned"></span>' : ""}</button>`).join("");
+    const groups = NFS.TUNE_GROUPS.map(([g, items]) => `<h4 style="font-size:13px;margin:12px 0 4px">${g}${g === "ECU" || g === "Turbo" ? ' <span class="muted" style="font-weight:400">torque at each rpm</span>' : ""}</h4>` +
+      (g === "ECU" || g === "Turbo" ? tuneCurve(c, items) : `<div class="tgrid">${items.map(it => tuneSlider(c, it)).join("")}</div>`)).join("");
+    const want = selSetup === 4 ? "speed" : (Object.keys(NFS.TUNE_PRESETS).find(id => NFS.TUNE_PRESETS[id].setup === selSetup) || "grip");
+    const presets = Object.entries(NFS.TUNE_PRESETS).map(([id, p]) => `<option value="${id}" ${id === want ? "selected" : ""}>${p.name}</option>`).join("");
+    return `<h3 style="font-size:14px;margin:14px 0 6px">Dyno tuning</h3>
+      <p class="note">The game keeps a separate setup for each race type and uses the matching one automatically. 0 is the game's default, and each step is one notch in the game's tuning screen. A category only has an effect once the car has its upgrade (Max performance covers all of them).</p>
+      <div class="tabs">${tabs}</div>
+      <div class="row" style="margin:10px 0">
+        <label>Preset <select id="tunePreset">${presets}</select></label>
+        <button class="primary" id="tuneApply">Apply to ${NFS.SETUPS[selSetup]}</button>
+        <button id="tuneAuto" title="Grip goes to Circuit and Sprint, Drag to Drag, Drift to Drift, Top speed to Street X and URL">Apply each preset to its race type</button>
+        <button id="tuneCopy">Copy this setup to all race types</button>
+        <button id="tuneReset">Reset ${NFS.SETUPS[selSetup]}</button>
+      </div>
+      ${groups}`;
+  }
+  function wireTuning(c) {
+    const slot = `Slot ${selCareer + 1}`, sname = NFS.SETUPS[selSetup];
+    const ed = $("carEditor");
+    ed.querySelectorAll("button[data-setup]").forEach(b => b.onclick = () => { selSetup = +b.dataset.setup; renderEditor(); });
+    ed.querySelectorAll("input[data-tune]").forEach(inp => {
+      inp.oninput = () => { const v = inp.parentElement.querySelector(".v"); v.textContent = stepText(+inp.value); v.classList.toggle("on", +inp.value !== 0); };
+      inp.onchange = () => {
+        const k = +inp.dataset.tune, item = NFS.TUNE_GROUPS.flatMap(g => g[1]).find(it => it[0] === k);
+        NFS.setTune(buf, c.base, selSetup, k, +inp.value);
+        log(`${slot}: ${sname} tuning, ${item[1]} set to ${stepText(+inp.value)}`);
+      };
+    });
+    $("tuneApply").onclick = () => { const id = $("tunePreset").value; NFS.applyTunePreset(buf, c.base, selSetup, id); log(`${slot}: ${NFS.TUNE_PRESETS[id].name} preset applied to ${sname}`); };
+    $("tuneAuto").onclick = () => {
+      for (const id in NFS.TUNE_PRESETS) NFS.applyTunePreset(buf, c.base, NFS.TUNE_PRESETS[id].setup, id);
+      NFS.applyTunePreset(buf, c.base, 4, "speed");
+      log(`${slot}: presets applied to every race type`);
+    };
+    $("tuneCopy").onclick = () => { for (let i = 0; i < 5; i++) if (i !== selSetup) NFS.copySetup(buf, c.base, selSetup, i); log(`${slot}: ${sname} tuning copied to every race type`); };
+    $("tuneReset").onclick = () => { NFS.resetSetup(buf, c.base, selSetup); log(`${slot}: ${sname} tuning reset`); };
   }
 
   function renderMyCars() {
@@ -660,7 +770,7 @@ const NFS = (() => {
   // The exe checks GitHub itself and can replace itself (nfsCheckUpdate / nfsUpdate in
   // exe/main.go). A downloaded HTML file just shows a link. The GitHub Pages copy is
   // always the latest, so it doesn't check.
-  const VERSION = "1.0.0", REPO = "https://github.com/nrpabst/NFSU2-Save-Editor";
+  const VERSION = "1.1.0", REPO = "https://github.com/nrpabst/NFSU2-Save-Editor";
   $("ver").textContent = "v" + VERSION;
   const vnum = v => String(v).replace(/^v/, "").split(".").map(n => parseInt(n, 10) || 0);
   const isNewer = (a, b) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };

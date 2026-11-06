@@ -296,6 +296,47 @@ const NFS = (() => {
     w32(b, OFF.firstMyCarsId, u32(b, OFF.activeCareerId));
   }
 
+  // ---------- dyno tuning ----------
+  // Every car keeps 5 dyno setups of 41 bytes at +856, one per race type, in the
+  // game's order (SPEED2.EXE 0x549760): Circuit (also Sprint), Drag, Drift, Street X,
+  // URL. Each byte is 0..200, 100 = centre; the game reads (b - 100) / 100 and its
+  // sliders move in steps of 10 (-10..+10 on screen). Bytes 0..22 are one slider each
+  // in the game's tuning-type order (label switch 0x50FE90, getter 0x59AEE0); the ECU
+  // and turbo torque curves are 9 columns each (1000 rpm apart) at 23..31 and 32..40.
+  const TUNE_OFF = 856, SETUP_SIZE = 41;
+  const SETUPS = ["Circuit and Sprint", "Drag", "Drift", "Street X", "URL"];
+  // [byte, name, left label, right label]
+  const TUNE_GROUPS = [
+    ["Suspension", [[0, "Front Springs", "Soft", "Hard"], [4, "Rear Springs", "Soft", "Hard"], [1, "Front Shocks", "Soft", "Hard"],
+      [5, "Rear Shocks", "Soft", "Hard"], [2, "Front Sway Bar", "Soft", "Hard"], [6, "Rear Sway Bar", "Soft", "Hard"],
+      [3, "Front Lowering", "Low", "High"], [7, "Rear Lowering", "Low", "High"], [8, "Steering Ratio", "Less", "More"]]],
+    ["Drivetrain", [[9, "Final Drive Ratio", "Top Speed", "Acceleration"], [10, "1st Gear"], [11, "2nd Gear"], [12, "3rd Gear"],
+      [13, "4th Gear"], [14, "5th Gear"], [15, "6th Gear"]]],
+    ["Aerodynamics", [[21, "Front Downforce", "Weak", "Strong"], [22, "Rear Downforce", "Weak", "Strong"]]],
+    ["Tires & Brakes", [[19, "Front Tire Grip", "Weak", "Strong"], [20, "Rear Tire Grip", "Weak", "Strong"], [18, "Brake Bias", "Rear", "Front"]]],
+    ["Nitrous", [[17, "Nitrous Torque", "Less", "More"], [16, "Rate of Depletion", "Slower", "Faster"]]],
+    ["ECU", Array.from({ length: 9 }, (_, i) => [23 + i, `${i + 1},000 rpm`])],
+    ["Turbo", Array.from({ length: 9 }, (_, i) => [32 + i, `${i + 1},000 rpm`])],
+  ];
+  // Presets in on-screen steps (-10..+10); sliders not listed go back to the centre.
+  const TUNE_PRESETS = {
+    grip: { name: "Grip (circuit)", setup: 0, steps: { 0: 5, 4: 5, 1: 5, 5: 5, 2: 6, 6: 4, 3: -10, 7: -10, 8: 3, 21: 8, 22: 8, 19: 10, 20: 10, 18: 2 } },
+    drag: { name: "Drag", setup: 1, steps: { 0: 2, 4: -3, 1: 2, 5: -3, 3: -10, 7: -6, 9: 3, 10: 4, 11: 3, 12: 2, 21: -10, 22: -10, 19: 0, 20: 10, 18: 3, 17: 10, 16: 5 } },
+    drift: { name: "Drift", setup: 2, steps: { 0: 6, 4: -4, 1: 5, 5: -3, 2: 8, 6: -6, 3: -6, 7: -6, 8: 10, 9: 6, 10: 5, 11: 5, 12: 4, 19: 10, 20: -6, 18: -5, 21: 5, 22: -5 } },
+    speed: { name: "Top speed (Street X / URL)", setup: 3, steps: { 0: 4, 4: 4, 1: 4, 5: 4, 3: -8, 7: -8, 9: -6, 13: -3, 14: -4, 15: -4, 21: -4, 22: -2, 19: 6, 20: 6, 17: 6 } },
+  };
+  function tuneAt(base, setup, k) { return base + TUNE_OFF + setup * SETUP_SIZE + k; }
+  // On-screen step (-10..+10, rounded) for a byte, and back
+  function getTune(b, base, setup, k) { return Math.round((b[tuneAt(base, setup, k)] - 100) / 10); }
+  function setTune(b, base, setup, k, step) { b[tuneAt(base, setup, k)] = 100 + 10 * Math.max(-10, Math.min(10, Math.round(step))); }
+  function resetSetup(b, base, setup) { b.fill(100, tuneAt(base, setup, 0), tuneAt(base, setup, SETUP_SIZE)); }
+  function applyTunePreset(b, base, setup, id) {
+    const p = TUNE_PRESETS[id]; resetSetup(b, base, setup);
+    for (const k in p.steps) setTune(b, base, setup, +k, p.steps[k]);
+  }
+  function copySetup(b, base, from, to) { b.copyWithin(tuneAt(base, to, 0), tuneAt(base, from, 0), tuneAt(base, from, SETUP_SIZE)); }
+  function setupTuned(b, base, setup) { for (let k = 0; k < SETUP_SIZE; k++) if (b[tuneAt(base, setup, k)] !== 100) return true; return false; }
+
   // Profile checksums, as nfsu2.xyz (and the game) check them: CRC-32 (MSB-first) of [28,36), [36,end), [0,24)
   const CRC_T = new Uint32Array(256);
   for (let n = 0; n < 256; n++) { let e = n << 24; for (let t = 0; t < 8; t++) e = e & 0x80000000 ? (e << 1) ^ 0x04C11DB7 : e << 1; CRC_T[n] = e >>> 0; }
@@ -306,6 +347,7 @@ const NFS = (() => {
 
   return { SAVE_SIZE, OFF, CARS, TAILS, GENERIC, SLOT_LABELS, KITS, PICKERS, PRESETS, applyPicker, currentPick, SEEN, maxPerformance, stockPerformance, perfLevel, applyPreset, genericOptions, importProgress, progressLooksImported, presetMyCar, presetCareer, bh, u32, w32, f32, validate, carCodeOf, carName, partName,
     stockPart, readCareer, readMyCar, setCareerCar, changeCareerModel, removeCareerCar, activeIndex, setActive,
-    copyCareerToMyCars, setMyCar, clearMyCar, profileName, fixChecksums, checksumsOk, careerBase, myCarsBase, carTableFloat };
+    copyCareerToMyCars, setMyCar, clearMyCar, profileName, fixChecksums, checksumsOk, careerBase, myCarsBase, carTableFloat,
+    SETUPS, TUNE_GROUPS, TUNE_PRESETS, getTune, setTune, resetSetup, applyTunePreset, copySetup, setupTuned };
 })();
 if (typeof module !== "undefined") module.exports = NFS;

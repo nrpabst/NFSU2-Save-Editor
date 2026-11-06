@@ -58,7 +58,7 @@ Common layout (first 1072 bytes):
 | 704 | `<CAR>_CV` |
 | 708 to 748 | 10 performance floats, 0 for stock and about 3.0 when maxed |
 | 780 to 856 | 76 performance flags (0/1) |
-| 856 to 1061 | Tuning values, 100 = default |
+| 856 to 1061 | Dyno tuning: 5 setups × 41 bytes (see below) |
 
 Career blocks add `+1069` = purchased (1), `+1070` = flags, and `+1072..2034` =
 a bitfield of bought parts.
@@ -103,6 +103,36 @@ Parts are stored as `bh(name)`, where `bh` starts at 0xFFFFFFFF and does
 A part with a car-specific suffix that has no known name can still be moved to
 another car: `bh(CAR + suffix) = bh(CAR) * 33^len(suffix) + bh0(suffix)` (mod 2^32),
 where `bh0` is the same hash started at 0. `stockPart()` in `src/core.js` uses this.
+
+### Dyno tuning (`+856`)
+
+Five setups of 41 bytes, one per race type, in this order: Circuit (also used for
+Sprint), Drag, Drift, Street X, URL. The game picks the matching one for each race.
+Each byte is 0 to 200 with 100 as the centre. The game reads `(b - 100) / 100`, and
+its sliders move in steps of 10, which shows as -10 to +10 on screen.
+
+| Byte | Slider (left / right end) |
+|---|---|
+| 0 / 4 | Front / Rear Springs (soft / hard) |
+| 1 / 5 | Front / Rear Shocks (soft / hard) |
+| 2 / 6 | Front / Rear Sway Bar (soft / hard) |
+| 3 / 7 | Front / Rear Lowering (low / high) |
+| 8 | Steering Ratio (less / more) |
+| 9 | Final Drive Ratio (top speed / acceleration) |
+| 10 to 15 | 1st to 6th Gear |
+| 16 | Nitrous Rate of Depletion |
+| 17 | Nitrous Torque |
+| 18 | Brake Bias (rear / front) |
+| 19 / 20 | Front / Rear Tire Grip (weak / strong) |
+| 21 / 22 | Front / Rear Downforce (weak / strong) |
+| 23 to 31 | ECU torque curve, one column per 1000 rpm |
+| 32 to 40 | Turbo torque curve, one column per 1000 rpm |
+
+The names and order come from SPEED2.EXE v1.2. 0x50FE90 maps each tuning type to its
+label, 0x59AEE0 and 0x59AF80 read and write a value (types 23 and 24 are the 9-column
+curves at 0x17 and 0x20), 0x549B40 onwards gives each slider its end labels, and
+0x549760 names the 5 setups. The 5 × 41 layout of the record matches nfsu2.xyz's
+`runtime/drift.c`.
 
 ## Career and profile
 
