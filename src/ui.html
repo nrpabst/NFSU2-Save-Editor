@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NFSU2 Save Trainer</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#16181d;--mute:#5d6470;--line:#dde1e7;--acc:#e8590c;--acc2:#c44a06;--ok:#2b8a3e;--warn:#b35c00;--bad:#c92a2a;--chip:#eef1f5}
+@media (prefers-color-scheme:dark){:root{--bg:#121418;--card:#1b1e24;--ink:#e9ecf1;--mute:#9aa3af;--line:#2c313a;--acc:#ff7a2e;--acc2:#ff954f;--ok:#51cf66;--warn:#ffa94d;--bad:#ff6b6b;--chip:#252a32}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1100px;margin:0 auto}
+h1{margin:0;font-size:22px;letter-spacing:.2px}
+h1 span{color:var(--acc)}
+.sub{color:var(--mute);margin-top:4px}
+main{max-width:1100px;margin:0 auto;padding:8px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+.card h2{margin:0 0 10px;font-size:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button.primary:hover{background:var(--acc2)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,input[type=text],input[type=number]{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+input[type=number]{width:160px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.over{border-color:var(--acc);color:var(--ink)}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.slot{border:1px solid var(--line);border-radius:9px;padding:12px;background:var(--bg)}
+.slot.sel{outline:2px solid var(--acc)}
+.slot .t{font-weight:600}
+.slot .m{color:var(--mute);font-size:12px}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--chip);color:var(--mute);margin-left:6px}
+.tag.on{background:var(--acc);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--mute);font-weight:500}
+td code{font-size:12px}
+.mono{font-family:ui-monospace,Consolas,monospace}
+.muted{color:var(--mute)}
+.note{font-size:12.5px;color:var(--mute)}
+.warn{color:var(--warn)}
+.ok{color:var(--ok)}
+.hidden{display:none}
+#log{font-size:12.5px;max-height:160px;overflow:auto}
+.scroll{max-height:440px;overflow:auto}
+details summary{cursor:pointer;color:var(--mute)}
+.money{font-size:28px;font-weight:700}
+.pkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.pk{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+.pk span{color:var(--mute);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>NFSU2 <span>Save Trainer</span></h1>
+  <div class="sub">Edit cash, garage cars and parts in a Need for Speed Underground 2 profile. Everything runs in this page; your file never leaves your computer.</div>
+</header>
+<main>
+  <section class="card" id="loadCard">
+    <h2>1. Open your profile</h2>
+    <div class="drop" id="drop">Drop your profile file here (the one named after your profile, e.g. <b>neuneu</b> inside <span class="mono">NFS Underground 2/neuneu/</span>) or click to choose it.</div>
+    <input type="file" id="file" class="hidden">
+    <p class="note">Keep a copy of the original. This tool doesn't touch GARAGE.DAT or the other backup files.</p>
+    <div id="loadMsg"></div>
+  </section>
+
+  <div id="app" class="hidden">
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <div><b id="profName"></b> <span class="muted" id="fileInfo"></span></div>
+        <div class="row">
+          <span id="dirty" class="muted">No changes</span>
+          <button id="undoAll">Revert all</button>
+          <button class="primary" id="save">Download edited save</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Bank</h2>
+      <div class="row">
+        <div class="money" id="cashNow"></div>
+        <input type="number" id="cashIn" min="0" max="4294967295" step="1">
+        <button id="cashSet">Set cash</button>
+        <button data-cash="100000">$100,000</button>
+        <button data-cash="1000000">$1,000,000</button>
+        <button data-cash="9999999">$9,999,999</button>
+      </div>
+      <p class="note">Values above about 10 million may not display properly in the game's menus.</p>
+    </section>
+
+    <section class="card">
+      <h2>Career progress</h2>
+      <div class="row">
+        <span id="progState" class="muted"></span>
+        <button class="primary" id="progImport">Complete career (copy progress from 100% save)</button>
+      </div>
+      <p class="note">This copies the whole career state from the 100% save: races won, stages, unlocked shops, parts and cars, sponsors, stats and records. Your cars, cash, current car, profile name and game settings stay as they are. You can't pick a single stage yet, because I haven't worked out which bytes mean what. Your own race history is replaced, so keep your backup.</p>
+    </section>
+
+    <section class="card">
+      <h2>Career garage</h2>
+      <div class="slots" id="careerSlots"></div>
+      <div id="carEditor" class="hidden" style="margin-top:14px"></div>
+    </section>
+
+    <section class="card">
+      <h2>My Cars (Quick Race garage)</h2>
+      <p class="note">20 slots for cars you can use in Quick Race. Copy a career car here, or start a new stock car. This part is less tested than the career garage.</p>
+      <div class="row" style="margin-bottom:10px">
+        <label>Copy career car <select id="mcFrom"></select></label>
+        <label>to slot <select id="mcTo"></select></label>
+        <button id="mcCopy">Copy</button>
+        <span class="muted">or</span>
+        <select id="mcModel"></select>
+        <button id="mcNew">Put car in slot</button>
+      </div>
+      <div class="slots" id="myCarsSlots"></div>
+    </section>
+
+    <section class="card">
+      <h2>Part hash calculator</h2>
+      <div class="row">
+        <input type="text" id="hashIn" placeholder="e.g. SKYLINE_KIT02_FRONT_BUMPER" style="min-width:320px">
+        <code id="hashOut" class="mono"></code>
+      </div>
+      <p class="note">NFSU2 stores every part as a hash of its name. Type a part name to see its hash; you can paste a name straight into the part table too.</p>
+    </section>
+
+    <section class="card">
+      <h2>Change log</h2>
+      <div id="log" class="muted">Nothing yet.</div>
+    </section>
+  </div>
+</main>
+
+<script>
+/*__CORE__*/
+</script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let orig = null, buf = null, fname = "profile", selCareer = null, changes = [];
+  const fmt = n => "$" + n.toLocaleString("en-US");
+  const hex = n => "0x" + (n >>> 0).toString(16).toUpperCase().padStart(8, "0");
+
+  function log(msg) { changes.push(msg); render(); }
+  function carOptions(sel) { return NFS.CARS.map(([c, n]) => `<option value="${c}" ${c === sel ? "selected" : ""}>${n}</option>`).join(""); }
+  function addOptions(sel) {
+    return `<optgroup label="Fully modded (from the 100% save)">${NFS.PRESETS.map((p, i) => `<option value="P${i}">${NFS.carName(p.code)}, modded</option>`).join("")}</optgroup>
+      <optgroup label="Stock">${carOptions(sel)}</optgroup>`;
+  }
+
+  // ---------- loading ----------
+  const drop = $("drop"), file = $("file");
+  drop.onclick = () => file.click();
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); };
+  file.onchange = () => file.files[0] && load(file.files[0]);
+
+  async function load(f) {
+    const b = new Uint8Array(await f.arrayBuffer());
+    const errs = NFS.validate(b);
+    if (errs.length) { $("loadMsg").innerHTML = `<p class="warn">${errs.join("<br>")}</p>`; return; }
+    orig = b.slice(); buf = b; fname = f.name; changes = []; selCareer = null;
+    $("loadMsg").innerHTML = `<p class="ok">Loaded ${f.name}.</p>`;
+    $("app").classList.remove("hidden");
+    render();
+  }
+
+  // ---------- render ----------
+  function render() {
+    if (!buf) return;
+    $("profName").textContent = "Profile: " + NFS.profileName(buf);
+    $("fileInfo").textContent = `(${fname}, ${buf.length.toLocaleString()} bytes)`;
+    let nd = 0; for (let i = 0; i < buf.length; i++) if ((i < 16 || i >= 28) && buf[i] !== orig[i]) nd++;
+    $("dirty").textContent = nd ? `${nd} bytes changed` : "No changes";
+    $("dirty").className = nd ? "warn" : "muted";
+    const cash = NFS.u32(buf, NFS.OFF.cash);
+    $("cashNow").textContent = fmt(cash);
+    if (document.activeElement !== $("cashIn")) $("cashIn").value = cash;
+    const imp = NFS.progressLooksImported(buf);
+    $("progState").textContent = imp ? "Progress: matches the 100% save" : "Progress: your own";
+    $("progImport").disabled = imp;
+    renderCareer(); renderMyCars();
+    $("log").innerHTML = changes.length ? changes.map(c => "• " + c).join("<br>") : "Nothing yet.";
+  }
+
+  function renderCareer() {
+    const act = NFS.activeIndex(buf);
+    $("careerSlots").innerHTML = [0, 1, 2, 3, 4].map(i => {
+      const c = NFS.readCareer(buf, i);
+      if (!c.owned) return `<div class="slot"><div class="t">Slot ${i + 1} <span class="tag">empty</span></div>
+        <div class="row" style="margin-top:8px"><select id="add${i}">${addOptions("SKYLINE")}</select><button data-add="${i}">Add car</button></div></div>`;
+      return `<div class="slot ${selCareer === i ? "sel" : ""}"><div class="t">Slot ${i + 1}: ${c.code ? NFS.carName(c.code) : "Unknown car " + hex(c.xname)}
+        ${i === act ? '<span class="tag on">current car</span>' : ""}</div>
+        <div class="m">Performance: ${NFS.perfLevel(buf, c.base)} · ID ${hex(c.id)}</div>
+        <div class="row" style="margin-top:8px">
+          <button data-edit="${i}">${selCareer === i ? "Close" : "Edit"}</button>
+          ${i !== act ? `<button data-act="${i}">Make current</button>` : ""}
+          <button class="danger" data-rm="${i}">Remove</button>
+        </div></div>`;
+    }).join("");
+    renderEditor();
+  }
+
+  function renderEditor() {
+    const ed = $("carEditor");
+    if (selCareer === null || !NFS.readCareer(buf, selCareer).owned) { ed.classList.add("hidden"); selCareer = null; return; }
+    ed.classList.remove("hidden");
+    const c = NFS.readCareer(buf, selCareer);
+    let rows = "";
+    for (let off = 28; off < 708; off += 4) {
+      const h = NFS.u32(buf, c.base + off);
+      const gens = NFS.genericOptions(off);
+      const label = NFS.SLOT_LABELS[off];
+      if (!h && !label && !gens.length) continue;
+      const name = NFS.partName(h);
+      const stock = c.code ? NFS.stockPart(c.code, off) : null;
+      rows += `<tr><td class="muted">${off}</td><td>${label || '<span class="muted">slot</span>'}</td>
+        <td>${name ? `<code>${name}</code>` : '<span class="muted">unknown name</span>'}</td>
+        <td><code class="mono">${hex(h)}</code>${stock !== null && stock !== h ? ' <span class="tag">modified</span>' : ""}</td>
+        <td><input type="text" data-part="${off}" placeholder="part name or 0x hash" style="width:210px">
+        ${gens.length ? `<select data-gen="${off}"><option value="">from 100% save…</option>${gens.map(g => `<option value="${g}">${NFS.partName(g) || hex(g)}</option>`).join("")}</select>` : ""}</td></tr>`;
+    }
+    const pick = NFS.PICKERS.map((p, i) => {
+      const cur = NFS.currentPick(buf, c.base, c.code, i), seen = NFS.SEEN[i] || new Set();
+      const opts = p[3].map(k => `<option value="${k}" ${k === cur ? "selected" : ""}>${k === p[4] ? "Stock" : k}${seen.has(k) && k !== p[4] ? " ✓" : ""}</option>`).join("");
+      return `<label class="pk"><span>${p[0]}</span><select data-pick="${i}">${cur ? "" : '<option selected value="">custom</option>'}${opts}</select></label>`;
+    }).join("");
+    ed.innerHTML = `<div class="slot">
+      <div class="t">Editing slot ${selCareer + 1}: ${c.code ? NFS.carName(c.code) : "unknown"} <span class="tag">performance: ${NFS.perfLevel(buf, c.base)}</span></div>
+      <div class="row" style="margin:10px 0">
+        <button class="primary" id="edMax">Max performance</button>
+        <button id="edPerfStock">Stock performance</button>
+        <label>Swap to <select id="edModel">${addOptions(c.code)}</select></label><button id="edModelGo">Swap</button>
+        <button id="edStock">Reset all looks to stock</button>
+      </div>
+      <h3 style="font-size:14px;margin:14px 0 6px">Body parts</h3>
+      <div class="pkgrid">${pick}</div>
+      <p class="note">✓ means at least one car in the 100% save uses that option, but not every car has every style. If the game shows a missing part or crashes, set that part back to Stock. A widebody replaces the body and doors. The widebody cars in the 100% save all kept stock bumpers and skirts.</p>
+      <details><summary>All part slots (advanced)</summary>
+        <p class="note">Type a part name (like <code>${c.code || "240SX"}_STYLE21_HOOD</code>) or a hex hash and press Enter, or pick a value used on other cars in the 100% save. A wrong part can crash the game when it loads the car, so change one thing at a time and keep backups.</p>
+        <div class="scroll"><table><thead><tr><th>Offset</th><th>Slot</th><th>Part</th><th>Hash</th><th>Set</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </details></div>`;
+    $("edMax").onclick = () => { NFS.maxPerformance(buf, c.base); log(`Slot ${selCareer + 1}: performance maxed`); };
+    $("edPerfStock").onclick = () => { if (!confirm("Remove all performance upgrades from this car?")) return; NFS.stockPerformance(buf, c.base); log(`Slot ${selCareer + 1}: performance reset to stock`); };
+    $("edModelGo").onclick = () => {
+      const m = $("edModel").value;
+      if (m[0] === "P") { const p = +m.slice(1); NFS.presetCareer(buf, selCareer, p); log(`Slot ${selCareer + 1}: replaced with modded ${NFS.carName(NFS.PRESETS[p].code)}`); }
+      else { NFS.changeCareerModel(buf, selCareer, m); log(`Slot ${selCareer + 1}: changed to stock ${NFS.carName(m)}`); }
+    };
+    $("edStock").onclick = () => { for (let off = 28; off < 776; off += 4) if (off < 708 || off >= 748) NFS.w32(buf, c.base + off, NFS.stockPart(c.code, off)); log(`Slot ${selCareer + 1}: looks reset to stock`); };
+    ed.querySelectorAll("select[data-pick]").forEach(sel => sel.onchange = () => {
+      if (!sel.value) return; const i = +sel.dataset.pick; NFS.applyPicker(buf, c.base, c.code, i, sel.value);
+      log(`Slot ${selCareer + 1}: ${NFS.PICKERS[i][0]} set to ${sel.value === NFS.PICKERS[i][4] ? "stock" : sel.value}`);
+    });
+    ed.querySelectorAll("select[data-gen]").forEach(sel => sel.onchange = () => {
+      if (!sel.value) return; const off = +sel.dataset.gen; NFS.w32(buf, c.base + off, parseInt(sel.value, 10) >>> 0);
+      log(`Slot ${selCareer + 1}: ${NFS.SLOT_LABELS[off] || "offset " + off} set to ${hex(+sel.value)} (from 100% save)`);
+    });
+    ed.querySelectorAll("input[data-part]").forEach(inp => inp.onkeydown = e => {
+      if (e.key !== "Enter") return;
+      const v = inp.value.trim(); if (!v) return;
+      const off = +inp.dataset.part;
+      const h = /^0x[0-9a-f]{1,8}$/i.test(v) ? parseInt(v, 16) >>> 0 : NFS.bh(v.toUpperCase());
+      NFS.w32(buf, c.base + off, h);
+      log(`Slot ${selCareer + 1}: ${NFS.SLOT_LABELS[off] || "offset " + off} set to ${/^0x/i.test(v) ? hex(h) : v.toUpperCase()}`);
+    });
+  }
+
+  function renderMyCars() {
+    const ownedCareer = [0, 1, 2, 3, 4].map(i => NFS.readCareer(buf, i)).filter(c => c.owned);
+    const keepFrom = $("mcFrom").value, keepTo = $("mcTo").value;
+    $("mcFrom").innerHTML = ownedCareer.map(c => `<option value="${c.slot}">Slot ${c.slot + 1}: ${NFS.carName(c.code)}</option>`).join("");
+    $("mcTo").innerHTML = Array.from({ length: 20 }, (_, i) => `<option value="${i}">${i + 1}${NFS.readMyCar(buf, i).used ? " (used)" : ""}</option>`).join("");
+    if (keepFrom) $("mcFrom").value = keepFrom; if (keepTo) $("mcTo").value = keepTo;
+    if (!$("mcModel").options.length) $("mcModel").innerHTML = addOptions("SKYLINE");
+    const used = Array.from({ length: 20 }, (_, i) => NFS.readMyCar(buf, i)).filter(m => m.used);
+    $("myCarsSlots").innerHTML = used.length ? used.map(m => `<div class="slot"><div class="t">Slot ${m.slot + 1}: ${m.code ? NFS.carName(m.code) : "unknown " + hex(m.xname)}</div>
+      <div class="row" style="margin-top:8px"><button class="danger" data-mcrm="${m.slot}">Remove</button></div></div>`).join("") : '<p class="muted">All 20 slots are empty.</p>';
+  }
+
+  // ---------- actions ----------
+  document.addEventListener("click", e => {
+    const t = e.target; if (!buf || t.tagName !== "BUTTON") return;
+    const d = t.dataset;
+    if (d.cash) setCash(+d.cash);
+    else if (d.add !== undefined) {
+      const m = $("add" + d.add).value; selCareer = +d.add;
+      if (m[0] === "P") { const p = +m.slice(1); NFS.presetCareer(buf, +d.add, p); log(`Slot ${+d.add + 1}: added modded ${NFS.carName(NFS.PRESETS[p].code)} from the 100% save`); }
+      else { NFS.setCareerCar(buf, +d.add, m); log(`Slot ${+d.add + 1}: added stock ${NFS.carName(m)}`); }
+    }
+    else if (d.edit !== undefined) { selCareer = selCareer === +d.edit ? null : +d.edit; render(); }
+    else if (d.act !== undefined) { NFS.setActive(buf, +d.act); log(`Slot ${+d.act + 1} is now the current car`); }
+    else if (d.rm !== undefined) {
+      const owned = [0, 1, 2, 3, 4].filter(i => NFS.readCareer(buf, i).owned);
+      if (owned.length <= 1) { alert("You need at least one car in the career garage."); return; }
+      const name = NFS.carName(NFS.readCareer(buf, +d.rm).code);
+      if (!confirm(`Remove the ${name} from slot ${+d.rm + 1}?`)) return;
+      NFS.removeCareerCar(buf, +d.rm); if (selCareer === +d.rm) selCareer = null; log(`Slot ${+d.rm + 1}: removed ${name}`);
+    }
+    else if (d.mcrm !== undefined) { NFS.clearMyCar(buf, +d.mcrm); log(`My Cars slot ${+d.mcrm + 1}: cleared`); }
+  });
+  function setCash(v) {
+    v = Math.max(0, Math.min(4294967295, Math.floor(v || 0)));
+    NFS.w32(buf, NFS.OFF.cash, v); log(`Cash set to ${fmt(v)}`);
+  }
+  $("progImport").onclick = () => { if (!confirm("Replace your career progress with the 100% save's? Your cars, cash and name are kept.")) return; NFS.importProgress(buf); log("Career progress copied from the 100% save"); };
+  $("cashSet").onclick = () => setCash(+$("cashIn").value);
+  $("cashIn").onkeydown = e => { if (e.key === "Enter") setCash(+$("cashIn").value); };
+  $("mcCopy").onclick = () => { if (!$("mcFrom").value) return; const f = +$("mcFrom").value, to = +$("mcTo").value; NFS.copyCareerToMyCars(buf, f, to); log(`Copied career slot ${f + 1} to My Cars slot ${to + 1}`); };
+  $("mcNew").onclick = () => {
+    const to = +$("mcTo").value, m = $("mcModel").value;
+    if (m[0] === "P") { const p = +m.slice(1); NFS.presetMyCar(buf, to, p); log(`My Cars slot ${to + 1}: modded ${NFS.carName(NFS.PRESETS[p].code)}`); }
+    else { NFS.setMyCar(buf, to, m); log(`My Cars slot ${to + 1}: stock ${NFS.carName(m)}`); }
+  };
+  $("undoAll").onclick = () => { if (!confirm("Throw away every change?")) return; buf = orig.slice(); changes = []; selCareer = null; render(); };
+  $("save").onclick = () => {
+    const a = document.createElement("a");
+    NFS.fixChecksums(buf);
+    a.href = URL.createObjectURL(new Blob([buf], { type: "application/octet-stream" }));
+    a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $("hashIn").oninput = () => { const v = $("hashIn").value.trim().toUpperCase(); $("hashOut").textContent = v ? hex(NFS.bh(v)) + (NFS.partName(NFS.bh(v)) ? "  (known part)" : "") : ""; };
+})();
+</script>
+</body>
+</html>
