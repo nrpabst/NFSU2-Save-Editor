@@ -1,0 +1,99 @@
+# Every push to main runs the tests. When package.json has a version that hasn't been
+# released yet, it also publishes the exe and HTML as a GitHub release (tag v<version>,
+# notes from CHANGELOG.md) and updates the web version on GitHub Pages. Running the
+# workflow by hand redeploys the web version.
+# To release: bump "version" in package.json, add a CHANGELOG.md entry, push to main.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      pages: ${{ steps.version.outputs.pages }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: exe/go.mod
+          cache-dependency-path: exe/go.sum
+
+      - name: Test
+        run: npm test
+
+      - name: Build exe and HTML
+        run: npm run exe
+
+      - name: Check whether this version is released
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+          # The web version updates with each release, or when this workflow is run by hand.
+          if gh release view "v$v" >/dev/null 2>&1 && [ "$GITHUB_EVENT_NAME" != workflow_dispatch ]; then
+            echo "pages=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pages=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.version.outputs.version }}
+        run: |
+          node tools/release-notes.js "$V" > notes.md
+          gh release create "v$V" \
+            dist/NFSU2-Save-Editor.exe dist/NFSU2-Save-Editor.html \
+            --title "NFSU2 Save Editor $V" --notes-file notes.md --target "$GITHUB_SHA"
+
+      - name: Prepare web version
+        if: steps.version.outputs.pages == 'true'
+        run: |
+          mkdir -p site
+          cp dist/NFSU2-Save-Editor.html site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.version.outputs.pages == 'true'
+        with:
+          path: site
+
+  pages:
+    needs: build
+    if: needs.build.outputs.pages == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

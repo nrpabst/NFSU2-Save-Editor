@@ -10,7 +10,8 @@ run(process.execPath, [path.join(__dirname, "build.js")]);
 fs.copyFileSync(path.join(root, "dist", "NFSU2-Save-Editor.html"), path.join(root, "exe", "editor.html"));
 run(process.execPath, [path.join(__dirname, "winres.js")]);
 const out = path.join(root, "dist", "NFSU2-Save-Editor.exe");
-run("go", ["build", "-trimpath", "-ldflags", "-H windowsgui -s -w", "-o", out, "."], {
+const version = require(path.join(root, "package.json")).version;
+run("go", ["build", "-trimpath", "-ldflags", `-H windowsgui -s -w -X main.version=${version}`, "-o", out, "."], {
   cwd: path.join(root, "exe"),
   env: { ...process.env, GOOS: "windows", GOARCH: "amd64", CGO_ENABLED: "0" },
 });

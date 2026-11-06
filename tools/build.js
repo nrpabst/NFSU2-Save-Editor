@@ -1,4 +1,4 @@
-// Builds the single-file trainer: src/ui.html with src/data.js and src/core.js inlined.
+// Builds the single-file editor: src/ui.html with src/data.js and src/core.js inlined.
 // Usage: node tools/build.js   ->   dist/NFSU2-Save-Editor.html
 const fs = require("fs");
 const path = require("path");
@@ -11,5 +11,6 @@ const html = read("ui.html");
 if (!html.includes("/*__CORE__*/")) throw new Error("ui.html is missing the /*__CORE__*/ marker");
 fs.mkdirSync(path.join(root, "dist"), { recursive: true });
 const out = path.join(root, "dist", "NFSU2-Save-Editor.html");
-fs.writeFileSync(out, html.replace("/*__CORE__*/", () => core));
+const version = require(path.join(root, "package.json")).version;
+fs.writeFileSync(out, html.replace("/*__CORE__*/", () => core).replace(/__VERSION__/g, version));
 console.log(`wrote ${path.relative(root, out)} (${fs.statSync(out).size} bytes)`);

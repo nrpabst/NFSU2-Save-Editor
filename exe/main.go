@@ -10,6 +10,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -26,15 +27,15 @@ var page string
 const title = "NFSU2 Save Editor"
 
 var (
-	user32             = syscall.NewLazyDLL("user32.dll")
-	comdlg32           = syscall.NewLazyDLL("comdlg32.dll")
-	shell32            = syscall.NewLazyDLL("shell32.dll")
-	procMessageBox     = user32.NewProc("MessageBoxW")
-	procGetDpiForSys   = user32.NewProc("GetDpiForSystem")
-	procSysParamsInfo  = user32.NewProc("SystemParametersInfoW")
-	procGetSaveFile    = comdlg32.NewProc("GetSaveFileNameW")
-	procCommDlgError   = comdlg32.NewProc("CommDlgExtendedError")
-	procShellExecute   = shell32.NewProc("ShellExecuteW")
+	user32            = syscall.NewLazyDLL("user32.dll")
+	comdlg32          = syscall.NewLazyDLL("comdlg32.dll")
+	shell32           = syscall.NewLazyDLL("shell32.dll")
+	procMessageBox    = user32.NewProc("MessageBoxW")
+	procGetDpiForSys  = user32.NewProc("GetDpiForSystem")
+	procSysParamsInfo = user32.NewProc("SystemParametersInfoW")
+	procGetSaveFile   = comdlg32.NewProc("GetSaveFileNameW")
+	procCommDlgError  = comdlg32.NewProc("CommDlgExtendedError")
+	procShellExecute  = shell32.NewProc("ShellExecuteW")
 )
 
 func init() { runtime.LockOSThread() } // the window and WebView2 live on the main thread
@@ -55,6 +56,7 @@ func main() {
 		return
 	}
 	defer wv.Destroy()
+	go cleanupOldExe()
 	hwnd := uintptr(wv.Window())
 
 	// nfsSave(name, base64) shows a Save As dialog and writes the file. The dialog runs
@@ -76,6 +78,49 @@ func main() {
 			}
 			reply(wv, "nfsSaved", dest)
 		})
+	})
+	// Updates: the page asks for a check once it has loaded; the check and the download
+	// run in the background and report back through window.nfsUpdate* callbacks.
+	var pending *releaseAsset
+	wv.Bind("nfsCheckUpdate", func() {
+		if version == "dev" {
+			return
+		}
+		go func() {
+			r, a, err := latestRelease()
+			if err != nil || a == nil {
+				return
+			}
+			wv.Dispatch(func() {
+				pending = a
+				v := parseVersion(r.Tag)
+				wv.Eval(fmt.Sprintf("window.nfsUpdateAvailable(%q, %q)", fmt.Sprintf("%d.%d.%d", v[0], v[1], v[2]), r.HTMLURL))
+			})
+		}()
+	})
+	wv.Bind("nfsUpdate", func() {
+		a := pending
+		if a == nil {
+			return
+		}
+		reply(wv, "nfsUpdateStatus", "Downloading the update…")
+		go func() {
+			exe, err := os.Executable()
+			var tmp string
+			if err == nil {
+				tmp, err = downloadUpdate(a, exe)
+			}
+			wv.Dispatch(func() {
+				if err == nil {
+					err = swapAndRestart(exe, tmp)
+				}
+				if err != nil {
+					reply(wv, "nfsUpdateFailed", err.Error())
+					return
+				}
+				wv.Terminate()
+			})
+		}()
 	})
 	// Links open in the default browser instead of a bare WebView2 window.
 	wv.Bind("nfsOpenUrl", func(u string) { openURL(u) })

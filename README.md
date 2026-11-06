@@ -1,8 +1,20 @@
 # NFSU2 Save Editor for nfsu2.xyz
 
-A save editor for [nfsu2.xyz](https://nfsu2.xyz), the site that lets you play Need for Speed Underground 2 in a web browser. Download a save backup from nfsu2.xyz, edit it with this tool, then restore it on the site. It's a single Windows .exe (or an HTML file if you prefer). No install, and no upload: your save stays on your computer.
+Edit your Need for Speed Underground 2 save from [nfsu2.xyz](https://nfsu2.xyz), the site that runs the game in your web browser. Give yourself cash, unlock the whole career, and build the garage you want.
 
-> Built for and tested with nfsu2.xyz backups. It uses the same profile format as the PC game, but it has only been tested on nfsu2.xyz.
+**[Open the editor online](https://nrpabst.github.io/NFSU2-Save-Editor/)** · **[Download for Windows](https://github.com/nrpabst/NFSU2-Save-Editor/releases/latest)**
+
+## One editor, three ways to run it
+
+They all do exactly the same thing, with the same features. Pick whichever you like.
+
+| | How | Good to know |
+|---|---|---|
+| **Online** | [Open the link](https://nrpabst.github.io/NFSU2-Save-Editor/) | Nothing to download, always the latest version |
+| **Windows app** | Download `NFSU2-Save-Editor.exe` from [Releases](https://github.com/nrpabst/NFSU2-Save-Editor/releases/latest) | Opens in its own window and updates itself |
+| **HTML file** | Download `NFSU2-Save-Editor.html` from [Releases](https://github.com/nrpabst/NFSU2-Save-Editor/releases/latest) and open it in any browser | Works offline, and tells you when there's a new version |
+
+Your save is never uploaded, even online. The editor runs on your computer and the file stays there.
 
 ## Features
 
@@ -14,26 +26,23 @@ A save editor for [nfsu2.xyz](https://nfsu2.xyz), the site that lets you play Ne
 - Quick Race garage editing
 - Writes valid checksums, so nfsu2.xyz doesn't flag the save as edited
 
-## Usage
+## How to edit your save
 
-1. Download `NFSU2-Save-Editor.exe` from [Releases](https://github.com/nrpabst/NFSU2-Save-Editor/releases/latest) and run it.
-2. On [nfsu2.xyz](https://nfsu2.xyz), open **Profiles** and click **Download backup**.
-3. Drop your profile from the backup (`NFS Underground 2/<profile>/<profile>`) into the editor.
-4. Make your edits, click **Save edited profile**, and save it over the profile in the backup.
-5. Click **Restore** on nfsu2.xyz and pick the edited backup.
+1. On nfsu2.xyz, open **Profiles** and click **Download backup**.
+2. Open the editor and drop in your profile from the backup. It's the file named after your profile, in `NFS Underground 2/<profile>/`.
+3. Make your changes and save the edited profile.
+4. Put it back in the backup, then click **Restore** on nfsu2.xyz.
 
-Keep your original backup.
+Keep a copy of your original backup, just in case.
 
-Windows may say it "protected your PC" the first time, because the exe isn't signed. Click **More info**, then **Run anyway**. The exe uses the WebView2 runtime that comes with Windows 10 and 11.
+**Windows says it "protected your PC"?** That happens because the exe isn't signed. Click **More info**, then **Run anyway**. The app uses Microsoft's WebView2, which is already part of Windows 10 and 11.
 
-Not on Windows? Open `dist/NFSU2-Save-Editor.html` in any browser instead. It works the same, but the save button downloads the file.
-
-## Development
+## For developers
 
 ```
-npm test        # run tests
-npm run build   # rebuild dist/NFSU2-Save-Editor.html
-npm run exe     # build dist/NFSU2-Save-Editor.exe (needs Go, cross-compiles from any OS)
+npm test        # run the tests
+npm run build   # build dist/NFSU2-Save-Editor.html
+npm run exe     # build dist/NFSU2-Save-Editor.exe (needs Go, works on any OS)
 ```
 
-The save format is documented in [docs/SAVE-FORMAT.md](docs/SAVE-FORMAT.md).
+To release, bump `version` in `package.json`, add an entry to `CHANGELOG.md` and push to `main`. GitHub Actions then builds both files, publishes the release and updates the online version. The save format is documented in [docs/SAVE-FORMAT.md](docs/SAVE-FORMAT.md).

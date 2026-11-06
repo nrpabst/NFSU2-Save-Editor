@@ -45,6 +45,9 @@ td code{font-size:12px}
 .warn{color:var(--warn)}
 .ok{color:var(--ok)}
 .hidden{display:none}
+.ver{font-size:12px;font-weight:500;color:var(--mute);margin-left:6px}
+.update{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--acc);border-radius:10px;padding:10px 14px;margin:12px 0 0}
+.update a{color:var(--acc)}
 #log{font-size:12.5px;max-height:160px;overflow:auto}
 .scroll{max-height:440px;overflow:auto}
 details summary{cursor:pointer;color:var(--mute)}
@@ -56,7 +59,8 @@ details summary{cursor:pointer;color:var(--mute)}
 </head>
 <body>
 <header>
-  <h1>NFSU2 <span>Save Editor</span></h1>
+  <h1>NFSU2 <span>Save Editor</span><small class="ver" id="ver"></small></h1>
+  <div id="update" class="update hidden"></div>
   <div class="sub">Made for <a href="https://nfsu2.xyz" target="_blank" rel="noopener">nfsu2.xyz</a>, Need for Speed Underground 2 in the browser. Edit cash, cars, parts and career progress in a profile from its <b>Download backup</b>. <span id="privacy">Everything runs in this page; your file never leaves your computer.</span></div>
 </header>
 <main>
@@ -338,6 +342,33 @@ details summary{cursor:pointer;color:var(--mute)}
     $("save").textContent = "Save edited profile";
     $("privacy").textContent = "Everything runs on your computer; your file never leaves it.";
   }
+  // ---------- updates ----------
+  // The exe checks GitHub itself and can replace itself (nfsCheckUpdate / nfsUpdate in
+  // exe/main.go). A downloaded HTML file just shows a link. The GitHub Pages copy is
+  // always the latest, so it doesn't check.
+  const VERSION = "__VERSION__", REPO = "https://github.com/nrpabst/NFSU2-Save-Editor";
+  $("ver").textContent = "v" + VERSION;
+  const vnum = v => String(v).replace(/^v/, "").split(".").map(n => parseInt(n, 10) || 0);
+  const isNewer = (a, b) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+  const banner = html => { $("update").innerHTML = html; $("update").classList.remove("hidden"); };
+  window.nfsUpdateAvailable = (v, notesUrl) => {
+    banner(`<span><b>Version ${v} is out.</b> <a href="${notesUrl}" target="_blank" rel="noopener">What's new</a></span><button class="primary" id="updNow">Update and restart</button>`);
+    $("updNow").onclick = () => {
+      if (changes.length && !confirm("Your unsaved changes will be lost. Update now?")) return;
+      $("updNow").disabled = true;
+      window.nfsUpdate();
+    };
+  };
+  window.nfsUpdateStatus = msg => { const b = $("update").querySelector("span"); if (b) b.textContent = msg; };
+  window.nfsUpdateFailed = msg => banner(`<span class="warn">Update failed: ${msg.replace(/</g, "&lt;")}</span><a href="${REPO}/releases/latest" target="_blank" rel="noopener">Download it from GitHub</a>`);
+  if (window.NFSU2_EXE) window.nfsCheckUpdate();
+  else if (VERSION.indexOf("_") < 0 && !/\.github\.io$/.test(location.hostname)) {
+    fetch("https://api.github.com/repos/nrpabst/NFSU2-Save-Editor/releases/latest")
+      .then(r => r.ok ? r.json() : null)
+      .then(r => { if (r && isNewer(r.tag_name, VERSION)) banner(`<span><b>Version ${vnum(r.tag_name).join(".")} is out.</b> You can use the latest version online or download it again.</span><span><a href="https://nrpabst.github.io/NFSU2-Save-Editor/" target="_blank" rel="noopener">Open online</a> &nbsp; <a href="${r.html_url}" target="_blank" rel="noopener">Download</a></span>`); })
+      .catch(() => {});
+  }
+
   $("hashIn").oninput = () => { const v = $("hashIn").value.trim().toUpperCase(); $("hashOut").textContent = v ? hex(NFS.bh(v)) + (NFS.partName(NFS.bh(v)) ? "  (known part)" : "") : ""; };
 })();
 </script>
