@@ -2,7 +2,7 @@
   "name": "nfsu2-save-editor",
   "version": "1.0.0",
   "private": true,
-  "description": "Single-page save editor for Need for Speed Underground 2 profiles (PC format, as used by nfsu2.xyz)",
+  "description": "Save editor for nfsu2.xyz, the browser version of Need for Speed Underground 2",
   "scripts": {
     "build": "node tools/build.js",
     "test": "node tests/test.js",
