@@ -1,1 +1,4 @@
 node_modules/
+dist/*.exe
+exe/editor.html
+exe/*.syso

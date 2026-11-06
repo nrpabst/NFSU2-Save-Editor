@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node tools/build.js",
     "test": "node tests/test.js",
-    "data": "node tools/extract-data.js tests/fixtures/100pct.bin"
+    "data": "node tools/extract-data.js tests/fixtures/100pct.bin",
+    "exe": "node tools/build-exe.js"
   }
 }

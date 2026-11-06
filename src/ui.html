@@ -57,7 +57,7 @@ details summary{cursor:pointer;color:var(--mute)}
 <body>
 <header>
   <h1>NFSU2 <span>Save Editor</span></h1>
-  <div class="sub">Made for <a href="https://nfsu2.xyz" target="_blank" rel="noopener">nfsu2.xyz</a>, Need for Speed Underground 2 in the browser. Edit cash, cars, parts and career progress in a profile from its <b>Download backup</b>. Everything runs in this page; your file never leaves your computer.</div>
+  <div class="sub">Made for <a href="https://nfsu2.xyz" target="_blank" rel="noopener">nfsu2.xyz</a>, Need for Speed Underground 2 in the browser. Edit cash, cars, parts and career progress in a profile from its <b>Download backup</b>. <span id="privacy">Everything runs in this page; your file never leaves your computer.</span></div>
 </header>
 <main>
   <section class="card" id="loadCard">
@@ -322,11 +322,22 @@ details summary{cursor:pointer;color:var(--mute)}
   };
   $("undoAll").onclick = () => { if (!confirm("Throw away every change?")) return; buf = orig.slice(); changes = []; selCareer = null; render(); };
   $("save").onclick = () => {
-    const a = document.createElement("a");
     NFS.fixChecksums(buf);
+    if (window.NFSU2_EXE) { // Windows app: native Save As dialog
+      let s = ""; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+      window.nfsSave(fname, btoa(s));
+      return;
+    }
+    const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([buf], { type: "application/octet-stream" }));
     a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
+  window.nfsSaved = p => { $("dirty").textContent = "Saved to " + p; };
+  window.nfsSaveFailed = m => alert("Couldn't save the file: " + m);
+  if (window.NFSU2_EXE) {
+    $("save").textContent = "Save edited profile";
+    $("privacy").textContent = "Everything runs on your computer; your file never leaves it.";
+  }
   $("hashIn").oninput = () => { const v = $("hashIn").value.trim().toUpperCase(); $("hashOut").textContent = v ? hex(NFS.bh(v)) + (NFS.partName(NFS.bh(v)) ? "  (known part)" : "") : ""; };
 })();
 </script>
