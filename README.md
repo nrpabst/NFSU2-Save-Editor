@@ -1,4 +1,4 @@
-# NFSU2 Save Trainer
+# NFSU2 Save Editor
 
 A single-page save editor for Need for Speed Underground 2 profiles. It's built for
 backups from the nfsu2.xyz browser port, and it works on the standard PC profile
@@ -22,7 +22,7 @@ leave your computer.
 
 ## Using it
 
-1. Open `dist/NFSU2-Save-Trainer.html` in any browser.
+1. Open `dist/NFSU2-Save-Editor.html` in any browser.
 2. Drop in your profile file: `NFS Underground 2/<profile>/<profile>` from a
    nfsu2.xyz **Download backup**.
 3. Make your changes and click **Download edited save**.

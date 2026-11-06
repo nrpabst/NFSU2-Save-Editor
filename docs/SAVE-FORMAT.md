@@ -22,7 +22,7 @@ The CRC is CRC-32 with polynomial 0x04C11DB7, processed MSB-first. The first fou
 bytes are read big-endian and inverted to seed it, and the result is inverted.
 Write the three CRCs in this order: 16, then 20, then 24, because 24 covers 16..24.
 nfsu2.xyz flags a profile with bad CRCs as "edited with a save editor" and repairs
-them on restore. The trainer writes correct CRCs, so no warning appears.
+them on restore. The editor writes correct CRCs, so no warning appears.
 
 ## Car table, 0x24 to 0x4A8
 
@@ -109,7 +109,7 @@ where `bh0` is the same hash started at 0. `stockPart()` in `src/core.js` uses t
 | Offset | Meaning |
 |---|---|
 | 41322 (0xA16A) | Cash, u32 |
-| 39266 to 53780 | Career progress: races, stages, shops, unlocks, stats, records. Not decoded field by field; the trainer copies it whole from a 100% save |
+| 39266 to 53780 | Career progress: races, stages, shops, unlocks, stats, records. Not decoded field by field; the editor copies it whole from a 100% save |
 | 51023 / 51024 | Save mode bytes (autosave / prompt), as read by nfsu2.xyz |
 | 53797 | Profile name, up to 32 bytes, NUL-padded |
 | 54061.. | Controller settings (`GDAPFN`, `NFSU2`) |
@@ -117,6 +117,6 @@ where `bh0` is the same hash started at 0. `stockPart()` in `src/core.js` uses t
 ## Other files in an nfsu2.xyz backup
 
 - `GARAGE.DAT` (`N2GA` header, 5 more empty-looking 2034-byte garage slots) is written
-  by the game, not by the website. The trainer leaves it alone.
+  by the game, not by the website. The editor leaves it alone.
 - `gamefile.bin` is multiplayer data (lobby settings, race results).
 - `settings.ini` and `registry.txt` are settings for the port and the game.
