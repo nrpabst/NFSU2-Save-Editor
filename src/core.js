@@ -146,7 +146,7 @@ const NFS = (() => {
 
   function validate(b) {
     const errs = [];
-    if (b.length !== SAVE_SIZE) errs.push(`File is ${b.length} bytes; an NFSU2 profile is ${SAVE_SIZE}. Pick the file named after your profile (e.g. "neuneu"), not GARAGE.DAT.`);
+    if (b.length !== SAVE_SIZE) errs.push(`File is ${b.length} bytes; an NFSU2 profile is ${SAVE_SIZE}. Pick the file named after your profile (e.g. "Profile"), not GARAGE.DAT.`);
     else if (String.fromCharCode(b[0], b[1], b[2], b[3]) !== "20CM") errs.push("Missing the 20CM header, this isn't an NFSU2 profile.");
     return errs;
   }

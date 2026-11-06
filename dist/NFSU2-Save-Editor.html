@@ -62,7 +62,7 @@ details summary{cursor:pointer;color:var(--mute)}
 <main>
   <section class="card" id="loadCard">
     <h2>1. Open your profile</h2>
-    <div class="drop" id="drop">Drop your profile file here (the one named after your profile, e.g. <b>neuneu</b> inside <span class="mono">NFS Underground 2/neuneu/</span>) or click to choose it.</div>
+    <div class="drop" id="drop">Drop your profile file here (the one named after your profile, e.g. <b>Profile</b> inside <span class="mono">NFS Underground 2/Profile/</span>) or click to choose it.</div>
     <input type="file" id="file" class="hidden">
     <p class="note">Keep a copy of the original. This tool doesn't touch GARAGE.DAT or the other backup files.</p>
     <div id="loadMsg"></div>
@@ -291,7 +291,7 @@ const NFS = (() => {
 
   function validate(b) {
     const errs = [];
-    if (b.length !== SAVE_SIZE) errs.push(`File is ${b.length} bytes; an NFSU2 profile is ${SAVE_SIZE}. Pick the file named after your profile (e.g. "neuneu"), not GARAGE.DAT.`);
+    if (b.length !== SAVE_SIZE) errs.push(`File is ${b.length} bytes; an NFSU2 profile is ${SAVE_SIZE}. Pick the file named after your profile (e.g. "Profile"), not GARAGE.DAT.`);
     else if (String.fromCharCode(b[0], b[1], b[2], b[3]) !== "20CM") errs.push("Missing the 20CM header, this isn't an NFSU2 profile.");
     return errs;
   }

@@ -48,7 +48,7 @@ t("career import copies progress and keeps cars, cash and name", () => {
   const b = early.slice(); N.importProgress(b); N.fixChecksums(b);
   assert(N.progressLooksImported(b) && N.checksumsOk(b));
   assert.strictEqual(N.u32(b, N.OFF.cash), 1150);
-  assert.strictEqual(N.profileName(b), "neuneu");
+  assert.strictEqual(N.profileName(b), "Profile");
   assert.strictEqual(N.readCareer(b, N.activeIndex(b)).code, "240SX");
   for (let i = 28; i < 1196; i++) assert.strictEqual(b[i], full[i], `car table byte ${i}`);
 });
