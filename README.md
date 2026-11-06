@@ -1,6 +1,6 @@
 # NFSU2 Save Editor for nfsu2.xyz
 
-A save editor for **[nfsu2.xyz](https://nfsu2.xyz)**, the browser version of Need for Speed Underground 2. It runs in your browser, so there's nothing to install, and your save never leaves your PC.
+A save editor for [nfsu2.xyz](https://nfsu2.xyz), the site that lets you play Need for Speed Underground 2 in a web browser. Download a save backup from nfsu2.xyz, edit it with this tool, then restore it on the site. The editor is a single HTML file, so you just open it in your browser. No install, and no upload: your save stays on your computer.
 
 > Built for and tested with nfsu2.xyz backups. It uses the same profile format as the PC game, but it has only been tested on nfsu2.xyz.
 
