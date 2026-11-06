@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed the car picker spilling out of empty career garage slots.
+
 ## 1.0.0
 
 First release.
