@@ -5,6 +5,10 @@
 - Dyno tuning: every slider from the game's tuning screen, for each of the 5 race-type setups (Circuit and Sprint, Drag, Drift, Street X, URL). That covers suspension, ride height, steering, gears, aero, grip, brake bias, nitrous, and the ECU and turbo torque curves.
 - Tuning presets: Grip, Drag, Drift and Top speed. Apply one to a setup, or apply each to its own race type in one click.
 
+## 1.0.1
+
+- Fixed the car picker spilling out of empty career garage slots.
+
 ## 1.0.0
 
 First release.

@@ -30,6 +30,9 @@ input[type=number]{width:160px}
 .drop.over{border-color:var(--acc);color:var(--ink)}
 .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
 .slot{border:1px solid var(--line);border-radius:9px;padding:12px;background:var(--bg)}
+.slot{min-width:0;display:flex;flex-direction:column;gap:8px}
+.slot select{width:100%;min-width:0;text-overflow:ellipsis}
+.slot .acts{margin-top:auto}
 .slot.sel{outline:2px solid var(--acc)}
 .slot .t{font-weight:600}
 .slot .m{color:var(--mute);font-size:12px}
@@ -567,11 +570,11 @@ const NFS = (() => {
     $("careerSlots").innerHTML = [0, 1, 2, 3, 4].map(i => {
       const c = NFS.readCareer(buf, i);
       if (!c.owned) return `<div class="slot"><div class="t">Slot ${i + 1} <span class="tag">empty</span></div>
-        <div class="row" style="margin-top:8px"><select id="add${i}">${addOptions("SKYLINE")}</select><button data-add="${i}">Add car</button></div></div>`;
+        <select id="add${i}" aria-label="Car for slot ${i + 1}">${addOptions("SKYLINE")}</select><div class="row acts"><button data-add="${i}">Add car</button></div></div>`;
       return `<div class="slot ${selCareer === i ? "sel" : ""}"><div class="t">Slot ${i + 1}: ${c.code ? NFS.carName(c.code) : "Unknown car " + hex(c.xname)}
         ${i === act ? '<span class="tag on">current car</span>' : ""}</div>
         <div class="m">Performance: ${NFS.perfLevel(buf, c.base)} · ID ${hex(c.id)}</div>
-        <div class="row" style="margin-top:8px">
+        <div class="row acts">
           <button data-edit="${i}">${selCareer === i ? "Close" : "Edit"}</button>
           ${i !== act ? `<button data-act="${i}">Make current</button>` : ""}
           <button class="danger" data-rm="${i}">Remove</button>
@@ -711,7 +714,7 @@ const NFS = (() => {
     if (!$("mcModel").options.length) $("mcModel").innerHTML = addOptions("SKYLINE");
     const used = Array.from({ length: 20 }, (_, i) => NFS.readMyCar(buf, i)).filter(m => m.used);
     $("myCarsSlots").innerHTML = used.length ? used.map(m => `<div class="slot"><div class="t">Slot ${m.slot + 1}: ${m.code ? NFS.carName(m.code) : "unknown " + hex(m.xname)}</div>
-      <div class="row" style="margin-top:8px"><button class="danger" data-mcrm="${m.slot}">Remove</button></div></div>`).join("") : '<p class="muted">All 20 slots are empty.</p>';
+      <div class="row acts"><button class="danger" data-mcrm="${m.slot}">Remove</button></div></div>`).join("") : '<p class="muted">All 20 slots are empty.</p>';
   }
 
   // ---------- actions ----------
